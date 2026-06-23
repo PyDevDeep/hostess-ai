@@ -1,10 +1,7 @@
-# Python Template
-
-This is a base template for new Python projects.
-It includes basic `.gitignore` and `dependabot` configuration for automatic dependency updates.
-
-## Usage
-
-1. Click "Use this template" in GitHub.
-2. Clone the new repository.
-3. Start coding!
+### ⚡ Core Tech Stack
+* **AI & Voice:** OpenAI Realtime API (`gpt-4o-mini-audio-preview`)
+* **Backend:** Python 3.13 + FastAPI (Async) + Uvicorn
+* **Database & State:** Airtable + SQLite (`aiosqlite`)
+* **Automation:** n8n (Self-hosted)
+* **Frontend:** React (Vite) + WebSockets
+* **Infrastructure:** Docker Compose / Structlog / Sentry
