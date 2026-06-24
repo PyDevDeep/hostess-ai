@@ -1,0 +1,40 @@
+services:
+  fastapi:
+    build: .
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  n8n:
+    image: n8nio/n8n:latest
+    env_file: .env
+    environment:
+      - N8N_HOST=localhost
+      - WEBHOOK_URL=${N8N_WEBHOOK_BASE_URL}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    restart: always
+    expose:
+      - "5678"
+
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: always
+    depends_on:
+      - fastapi
+      - n8n
