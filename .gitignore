@@ -86,3 +86,4 @@ pip-delete-this-directory.txt
 ehthumbs.db
 Thumbs.db
 docker-compose.override.yml
+n8n_data/
