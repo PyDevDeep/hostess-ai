@@ -1,0 +1,70 @@
+{
+  "name": "Post Call Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "post-call-analytics",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "base": "={{$env.AIRTABLE_BASE_ID}}",
+        "table": "Analytics",
+        "columns": {
+          "session_id": "={{$json.body.session_id}}",
+          "sentiment": "={{$json.body.sentiment}}",
+          "failure_reason": "={{$json.body.failure_reason}}",
+          "summary": "={{$json.body.summary}}",
+          "raw_transcript": "={{$json.body.raw_transcript}}"
+        }
+      },
+      "name": "Airtable Create",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [400, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Airtable Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Create": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false
+}
