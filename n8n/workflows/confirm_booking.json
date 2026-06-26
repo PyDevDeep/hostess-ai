@@ -1,0 +1,162 @@
+{
+  "name": "Confirm Booking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "confirm-booking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": "={{$env.AIRTABLE_BASE_ID}}",
+        "table": "Bookings",
+        "updateBy": "id",
+        "id": "={{$('Airtable Search').item.json.id}}",
+        "columns": {
+          "name": "={{$('Webhook').item.json.body.name}}",
+          "phone": "={{$('Webhook').item.json.body.phone}}",
+          "status": "Confirmed",
+          "hold_expires_at": ""
+        }
+      },
+      "name": "Airtable Update",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": "={{$env.AIRTABLE_BASE_ID}}",
+        "table": "Bookings",
+        "filterByFormula": "=AND(session_id = '{{$json.body.session_id}}', status = 'On Hold')"
+      },
+      "name": "Airtable Search",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=Нове бронювання: {{$json.fields.name}}, {{$json.fields.date}} {{$json.fields.time}}, {{$json.fields.guests}} гостей, тел: {{$json.fields.phone}}. ID: {{$json.id}}",
+        "additionalFields": {}
+      },
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [600, 0],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.FASTAPI_INTERNAL_URL}}/webhook/n8n",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event",
+              "value": "booking_updated"
+            },
+            {
+              "name": "booking_id",
+              "value": "={{$('Airtable Update').item.json.id}}"
+            },
+            {
+              "name": "status",
+              "value": "Confirmed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "FastAPI Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [800, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"booking_id\": \"{{$('Airtable Update').item.json.id}}\",\n  \"status\": \"Confirmed\",\n  \"message\": \"Booking successfully confirmed\"\n}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Airtable Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Search": {
+      "main": [
+        [
+          {
+            "node": "Airtable Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Update": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram": {
+      "main": [
+        [
+          {
+            "node": "FastAPI Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FastAPI Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false
+}

@@ -1,0 +1,136 @@
+{
+  "name": "Release On Hold",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "name": "Cron",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": "={{$env.AIRTABLE_BASE_ID}}",
+        "table": "Bookings",
+        "filterByFormula": "=AND(status = 'On Hold', IS_BEFORE(hold_expires_at, NOW()))"
+      },
+      "name": "Airtable Read Expired",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$input.all().length}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "IF Expired Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": "={{$env.AIRTABLE_BASE_ID}}",
+        "table": "Bookings",
+        "updateBy": "id",
+        "id": "={{$json.id}}",
+        "columns": {
+          "status": "Cancelled"
+        }
+      },
+      "name": "Airtable Update (Cancel)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [600, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.FASTAPI_INTERNAL_URL}}/webhook/n8n",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event",
+              "value": "hold_released"
+            },
+            {
+              "name": "session_ids",
+              "value": "={{$items().map(i => i.json.fields.session_id)}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "FastAPI Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [800, -100]
+    }
+  ],
+  "connections": {
+    "Cron": {
+      "main": [
+        [
+          {
+            "node": "Airtable Read Expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Read Expired": {
+      "main": [
+        [
+          {
+            "node": "IF Expired Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Expired Exist": {
+      "main": [
+        [
+          {
+            "node": "Airtable Update (Cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Update (Cancel)": {
+      "main": [
+        [
+          {
+            "node": "FastAPI Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false
+}

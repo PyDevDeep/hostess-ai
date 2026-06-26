@@ -1,0 +1,185 @@
+{
+  "name": "Check Availability",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "check-availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": "={{$env.AIRTABLE_BASE_ID}}",
+        "table": "Tables",
+        "filterByFormula": "capacity >= {{$json.body.guests}}"
+      },
+      "name": "Airtable Read (Tables)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": "={{$env.AIRTABLE_BASE_ID}}",
+        "table": "Bookings",
+        "filterByFormula": "=AND(date = '{{$('Webhook').item.json.body.date}}', time = '{{$('Webhook').item.json.body.time}}', OR(status = 'Confirmed', status = 'On Hold'))"
+      },
+      "name": "Airtable Read (Bookings)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allTables = $items('Airtable Read (Tables)').map(i => i.json);\nconst bookedTables = $items('Airtable Read (Bookings)').map(i => i.json.table_id);\nconst availableTables = allTables.filter(t => !bookedTables.includes(t.id));\n\nif (availableTables.length > 0) {\n  return [{ json: { available: true, table_id: availableTables[0].id, message: \"Table available\" } }];\n} else {\n  return [{ json: { available: false, table_id: null, message: \"No tables available\" } }];\n}"
+      },
+      "name": "Calculate Availability",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.available}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "IF Available",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [800, 0]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "base": "={{$env.AIRTABLE_BASE_ID}}",
+        "table": "Bookings",
+        "columns": {
+          "date": "={{$('Webhook').item.json.body.date}}",
+          "time": "={{$('Webhook').item.json.body.time}}",
+          "guests": "={{$('Webhook').item.json.body.guests}}",
+          "session_id": "={{$('Webhook').item.json.body.session_id}}",
+          "status": "On Hold",
+          "table_id": "={{$json.table_id}}",
+          "hold_expires_at": "={{new Date(new Date().getTime() + 180000).toISOString()}}"
+        }
+      },
+      "name": "Airtable Create (On Hold)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [1000, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"available\": true,\n  \"tables\": [\"{{$json.table_id}}\"],\n  \"message\": \"Table is available and put on hold.\"\n}",
+        "options": {}
+      },
+      "name": "Respond Available",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"available\": false,\n  \"tables\": [],\n  \"message\": \"No tables available for this time.\"\n}",
+        "options": {}
+      },
+      "name": "Respond Unavailable",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 100]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Airtable Read (Tables)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Read (Tables)": {
+      "main": [
+        [
+          {
+            "node": "Airtable Read (Bookings)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Read (Bookings)": {
+      "main": [
+        [
+          {
+            "node": "Calculate Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Availability": {
+      "main": [
+        [
+          {
+            "node": "IF Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Available": {
+      "main": [
+        [
+          {
+            "node": "Airtable Create (On Hold)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Create (On Hold)": {
+      "main": [
+        [
+          {
+            "node": "Respond Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}
