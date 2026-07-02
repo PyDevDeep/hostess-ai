@@ -54,7 +54,8 @@ export function useVoiceSession() {
 
         source.connect(analyser);
         analyser.connect(processor);
-        processor.connect(audioCtx.destination);
+        // Закоментовано для уникнення відлуння (loopback) мікрофона:
+        // processor.connect(audioCtx.destination);
       };
 
       ws.onmessage = async (event) => {

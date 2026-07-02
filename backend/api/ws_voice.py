@@ -51,6 +51,11 @@ async def voice_websocket(
                     await openai_client.send_audio_chunk(session_id, message["bytes"])
         except WebSocketDisconnect:
             logger.info("client_disconnected", session_id=session_id)
+        except RuntimeError as e:
+            if "Cannot call" in str(e):
+                logger.info("client_disconnected_abruptly", session_id=session_id)
+            else:
+                logger.error("client_to_openai_error", error=str(e))
         except Exception as e:
             logger.error("client_to_openai_error", error=str(e))
 
