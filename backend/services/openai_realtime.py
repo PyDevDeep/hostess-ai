@@ -26,8 +26,8 @@ class OpenAIRealtimeClient:
     async def connect(self, session_id: str, client_ws: Any) -> None:
         url = f"wss://api.openai.com/v1/realtime?model={self.model}"
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "OpenAI-Beta": "realtime=v1",
+            "Authorization": f"Bearer {self.api_key}"
+            # OpenAI-Beta header strictly removed for GA compatibility
         }
 
         session = VoiceSession(id=session_id, ws_client=client_ws, status=SessionStatus.CONNECTING)
@@ -40,6 +40,7 @@ class OpenAIRealtimeClient:
             update_event = {
                 "type": "session.update",
                 "session": {
+                    "type": "realtime",
                     "instructions": "You are a helpful restaurant booking agent. Be concise.",
                     "tools": [
                         {
@@ -54,8 +55,10 @@ class OpenAIRealtimeClient:
                         },
                     ],
                     "voice": "alloy",
-                    "input_audio_format": "pcm16",
-                    "output_audio_format": "pcm16",
+                    "audio": {
+                        "input": {"format": {"type": "audio/pcm", "rate": 24000}},
+                        "output": {"format": {"type": "audio/pcm", "rate": 24000}},
+                    },
                     "turn_detection": {"type": "server_vad"},
                 },
             }

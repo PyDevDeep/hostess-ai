@@ -55,7 +55,8 @@ async def voice_websocket(
             logger.error("client_to_openai_error", error=str(e))
 
     async def on_openai_event(event_type: str, payload: dict[str, Any]) -> None:
-        if event_type == "response.audio.delta":
+        # GA Event for audio streaming
+        if event_type == "response.output_audio.delta":
             delta = payload.get("delta")
             if delta:
                 await websocket.send_bytes(base64.b64decode(delta))
@@ -86,7 +87,7 @@ async def voice_websocket(
                 with contextlib.suppress(Exception):
                     await websocket.close(code=1000)
 
-        elif event_type == "response.audio_transcript.done":
+        elif event_type == "response.output_transcript.done":
             text = payload.get("transcript")
             if text:
                 transcript.append(f"AI: {text}")
